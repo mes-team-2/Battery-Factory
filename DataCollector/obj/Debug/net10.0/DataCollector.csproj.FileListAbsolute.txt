@@ -1,0 +1,17 @@
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\DataCollector.exe
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\DataCollector.deps.json
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\DataCollector.runtimeconfig.json
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\DataCollector.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\DataCollector.pdb
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\bin\Debug\net10.0\Newtonsoft.Json.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.csproj.AssemblyReference.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.AssemblyInfoInputs.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.AssemblyInfo.cs
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.csproj.CoreCompileInputs.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataColl.9903081B.Up2Date
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\refint\DataCollector.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.pdb
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\DataCollector.genruntimeconfig.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\DataCollector\obj\Debug\net10.0\ref\DataCollector.dll

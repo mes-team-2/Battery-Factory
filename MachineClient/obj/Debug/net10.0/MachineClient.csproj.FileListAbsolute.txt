@@ -1,0 +1,17 @@
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\MachineClient.exe
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\MachineClient.deps.json
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\MachineClient.runtimeconfig.json
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\MachineClient.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\MachineClient.pdb
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\bin\Debug\net10.0\Newtonsoft.Json.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.csproj.AssemblyReference.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.AssemblyInfoInputs.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.AssemblyInfo.cs
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.csproj.CoreCompileInputs.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineC.732A4E20.Up2Date
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\refint\MachineClient.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.pdb
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.genruntimeconfig.cache
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\ref\MachineClient.dll

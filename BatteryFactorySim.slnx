@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DataCollector/DataCollector.csproj" />
+  <Project Path="MachineClient/MachineClient.csproj" />
+</Solution>
