@@ -351,6 +351,7 @@ public class Machine
     public string WorkOrderNo { get; set; }
     public int PlannedQty { get; set; }
     public string ProductCode { get; set; }
+    public DateTime? DueDate { get; set; }
   }
 
   private class MachineMaterialDto
@@ -374,7 +375,8 @@ public class Machine
         {
           WorkOrderNo = data.workOrderNo,
           PlannedQty = (int)data.plannedQty,
-          ProductCode = (string)data.productCode
+          ProductCode = (string)data.productCode,
+          DueDate = data.dueDate
         };
       }
     }

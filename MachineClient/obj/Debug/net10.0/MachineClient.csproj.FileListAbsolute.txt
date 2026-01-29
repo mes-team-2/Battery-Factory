@@ -15,3 +15,4 @@ C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Deb
 C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.pdb
 C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.genruntimeconfig.cache
 C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\ref\MachineClient.dll
+C:\Users\admin\Desktop\final-project\ccc\BatteryFactorySim\MachineClient\obj\Debug\net10.0\MachineClient.sourcelink.json
