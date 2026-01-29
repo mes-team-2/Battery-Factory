@@ -1,11 +1,7 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 public class Machine
@@ -22,7 +18,7 @@ public class Machine
   // 설비에 장착된 자재 Lot ID 목록
   private List<long> _mountedMaterialIds = new List<long>();
 
-  // [New] 현재 설비 상태 추적 (중복 전송 방지용)
+  // 현재 설비 상태 추적
   private string _currentStatus = "STOP";
 
   private string _lastCompletedWoNo = "";
@@ -48,7 +44,6 @@ public class Machine
     {
       var loginData = new { workerCode = id, password = pw };
       var content = new StringContent(JsonConvert.SerializeObject(loginData), Encoding.UTF8, "application/json");
-      // [복구] 사용자님 원본 URL (/auth/login) 유지
       var response = await _httpClient.PostAsync($"{BACKEND_URL}/auth/login", content);
       if (response.IsSuccessStatusCode)
       {
@@ -114,14 +109,14 @@ public class Machine
         }
       };
       await SendJsonAsync(stream, packet);
-      await Task.Delay(5000); // 5초 주기
+      await Task.Delay(5000);
     }
   }
 
-  // [핵심] 생산 프로세스 (Push Logic + Status Report)
+  // 생산 프로세스
   private async Task ProductionProcess(NetworkStream stream)
   {
-    // [New] 시작 시 대기 상태 보고
+    // 시작 시 대기 상태 보고
     await ReportStatusAsync(stream, "WAIT", "READY_FOR_WORK");
 
     while (true)
@@ -131,7 +126,7 @@ public class Machine
       // 작업이 없거나 이미 완료한 작업이면 대기
       if (wo == null || wo.WorkOrderNo == _lastCompletedWoNo)
       {
-        // [New] IDLE 상태 보고 (중복 방지됨)
+        // 상태 보고
         if (_currentStatus != "WAIT")
           await ReportStatusAsync(stream, "WAIT", "IDLE");
 
@@ -139,7 +134,7 @@ public class Machine
         continue;
       }
 
-      // [New] 작업 시작 상태 보고 (RUN)
+      // 작업 시작 상태 보고
       await ReportStatusAsync(stream, "RUN", $"START_WO:{wo.WorkOrderNo}");
 
       int targetQty = wo.PlannedQty;
@@ -147,7 +142,6 @@ public class Machine
       string woNo = wo.WorkOrderNo;
       string pCode = wo.ProductCode;
 
-      // [Push Logic] 맨 앞 설비는 1.5배수 투입
       int productionLimit = targetQty;
       bool isHeadMachine = (_inputQueue == null);
 
@@ -167,7 +161,7 @@ public class Machine
       // 생산 루프
       while (true)
       {
-        // 1. 종료 조건 (Head 설비)
+        // 종료 조건
         if (isHeadMachine)
         {
           if (currentQty >= productionLimit)
@@ -177,7 +171,7 @@ public class Machine
           }
         }
 
-        // 2. 자재 가져오기 (Line 설비)
+        // 자재 가져오기
         if (!isHeadMachine)
         {
           string item;
@@ -186,7 +180,7 @@ public class Machine
             // 자재가 없어서 대기
             timeoutCount++;
 
-            // [New] 5초 이상 대기 시 자재 부족 상태 보고 (WAIT)
+            // 5초 이상 대기 시 자재 부족 상태 보고
             if (timeoutCount == 5)
             {
               await ReportStatusAsync(stream, "WAIT", "NO_MATERIAL");
@@ -199,7 +193,7 @@ public class Machine
             if (timeoutCount > 60)
             {
               Console.WriteLine($"[{Code}] 🛑 라인 종료 (자재 공급 중단됨). 작업 마감.");
-              // [New] 타임아웃 중단 상태 보고 (STOP)
+              // 타임아웃 중단 상태 보고
               await ReportStatusAsync(stream, "STOP", "MATERIAL_TIMEOUT");
               break;
             }
@@ -207,8 +201,7 @@ public class Machine
             continue;
           }
 
-          // 자재가 들어옴! 
-          // [New] WAIT 상태였다면 다시 RUN으로 복귀 보고
+          // WAIT 상태였다면 다시 RUN으로 복귀 보고
           if (timeoutCount >= 5 || _currentStatus != "RUN")
           {
             await ReportStatusAsync(stream, "RUN", "RESUME_WORK");
@@ -222,7 +215,7 @@ public class Machine
           await Task.Delay(1000); // Head 설비 가공 속도
         }
 
-        // 3. 생산 데이터 전송
+        // 생산 데이터 전송
         UpdateSensorValues();
 
         bool isBad = rnd.Next(0, 100) < 5; // 5% 불량
@@ -248,7 +241,7 @@ public class Machine
         };
         await SendJsonAsync(stream, packet);
 
-        // 4. 결과 처리 (양품만 전달)
+        // 결과 처리
         if (!isBad)
         {
           currentQty++;
@@ -265,23 +258,23 @@ public class Machine
         }
       }
 
-      // 5. 완료 보고 (실적 포함)
+      // 완료 보고 (실적 포함)
       Console.WriteLine($"[{Code}] 🏁 배치 최종 완료: {currentQty}EA (목표: {targetQty})");
       await ReportWorkOrderCompletionAsync(woNo, currentQty);
 
       _lastCompletedWoNo = woNo;
 
-      // [New] 배치 완료 후 대기 상태 보고 (WAIT)
+      // 배치 완료 후 대기 상태 보고
       await ReportStatusAsync(stream, "WAIT", "BATCH_COMPLETED");
       Console.WriteLine($"[{Code}] 🔄 대기 모드 진입...");
       await Task.Delay(3000);
     }
   }
 
-  // [New] 상태 보고 메서드 (수집기로 STATUS 패킷 전송)
+  // 상태 보고
   private async Task ReportStatusAsync(NetworkStream stream, string status, string reason)
   {
-    // 상태가 변할 때만 전송 (중복 방지)
+    // 상태가 변할 때만 전송
     if (_currentStatus == status) return;
 
     _currentStatus = status;
@@ -294,8 +287,8 @@ public class Machine
       {
         machineCode = Code,
         workerCode = _workerId,
-        status = status,   // RUN, WAIT, STOP
-        reason = reason,   // NO_MATERIAL, IDLE, etc.
+        status = status,
+        reason = reason,
         timestamp = DateTime.Now.ToString("s")
       }
     };

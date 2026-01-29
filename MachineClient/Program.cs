@@ -2,7 +2,6 @@
 
 class Program
 {
-  // 🏭 [컨베이어 벨트] 공정 사이사이를 이어주는 버퍼 (재공품 대기열)
   // 전극 완료품 -> 조립 대기
   public static ConcurrentQueue<string> Q_Electrode_To_Assembly = new ConcurrentQueue<string>();
   // 조립 완료품 -> 활성화 대기
@@ -16,7 +15,6 @@ class Program
   {
     Console.Title = "🏭 Real Factory Simulator (Conveyor Mode)";
 
-    // 1. [진짜 로그인]
     while (true)
     {
       Console.Clear();
