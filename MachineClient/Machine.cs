@@ -18,9 +18,11 @@ public class Machine
   // 설비에 장착된 자재 Lot ID 목록
   private List<long> _mountedMaterialIds = new List<long>();
 
+  // [New] 현재 작업 제품의 BOM 정보 (API로 받아와서 저장)
+  private List<BomDto> _currentBomList = new List<BomDto>();
+
   // 현재 설비 상태 추적
   private string _currentStatus = "STOP";
-
   private string _lastCompletedWoNo = "";
 
   private const string BACKEND_URL = "http://localhost:8088";
@@ -116,7 +118,6 @@ public class Machine
   // 생산 프로세스
   private async Task ProductionProcess(NetworkStream stream)
   {
-    // 시작 시 대기 상태 보고
     await ReportStatusAsync(stream, "WAIT", "READY_FOR_WORK");
 
     while (true)
@@ -126,7 +127,6 @@ public class Machine
       // 작업이 없거나 이미 완료한 작업이면 대기
       if (wo == null || wo.WorkOrderNo == _lastCompletedWoNo)
       {
-        // 상태 보고
         if (_currentStatus != "WAIT")
           await ReportStatusAsync(stream, "WAIT", "IDLE");
 
@@ -134,7 +134,9 @@ public class Machine
         continue;
       }
 
-      // 작업 시작 상태 보고
+      // [핵심] 작업 시작 전, 백엔드에서 BOM 정보 동적 조회
+      await FetchBomAsync(wo.ProductCode);
+
       await ReportStatusAsync(stream, "RUN", $"START_WO:{wo.WorkOrderNo}");
 
       int targetQty = wo.PlannedQty;
@@ -171,29 +173,22 @@ public class Machine
           }
         }
 
-        // 자재 가져오기
+        // 자재 가져오기 (Head가 아닌 경우)
         if (!isHeadMachine)
         {
           string item;
           if (!_inputQueue.TryDequeue(out item))
           {
-            // 자재가 없어서 대기
             timeoutCount++;
-
-            // 5초 이상 대기 시 자재 부족 상태 보고
             if (timeoutCount == 5)
             {
               await ReportStatusAsync(stream, "WAIT", "NO_MATERIAL");
               Console.WriteLine($"[{Code}] ⏳ 자재 대기 중... (Status: WAIT)");
             }
 
-            if (timeoutCount % 10 == 0 && timeoutCount < 60)
-              Console.WriteLine($"[{Code}] ⏳ 자재 대기 중... ({timeoutCount}/60s)");
-
-            if (timeoutCount > 60)
+            if (timeoutCount > 30)
             {
               Console.WriteLine($"[{Code}] 🛑 라인 종료 (자재 공급 중단됨). 작업 마감.");
-              // 타임아웃 중단 상태 보고
               await ReportStatusAsync(stream, "STOP", "MATERIAL_TIMEOUT");
               break;
             }
@@ -201,24 +196,22 @@ public class Machine
             continue;
           }
 
-          // WAIT 상태였다면 다시 RUN으로 복귀 보고
           if (timeoutCount >= 5 || _currentStatus != "RUN")
           {
             await ReportStatusAsync(stream, "RUN", "RESUME_WORK");
           }
 
-          timeoutCount = 0; // 리셋
-          await Task.Delay(1000); // 가공 시간
+          timeoutCount = 0;
+          await Task.Delay(1000);
         }
         else
         {
-          await Task.Delay(1000); // Head 설비 가공 속도
+          await Task.Delay(1000); // Head 설비 속도
         }
 
-        // 생산 데이터 전송
         UpdateSensorValues();
 
-        bool isBad = rnd.Next(0, 100) < 5; // 5% 불량
+        bool isBad = rnd.Next(0, 100) < 5;
         string defectType = isBad ? GetRandomDefect(Code) : "NONE";
 
         var packet = new
@@ -241,14 +234,15 @@ public class Machine
         };
         await SendJsonAsync(stream, packet);
 
-        // 결과 처리
         if (!isBad)
         {
           currentQty++;
           if (_outputQueue != null) _outputQueue.Enqueue("ITEM");
 
           double progress = (double)currentQty / targetQty * 100;
-          string materialLog = GetMaterialConsumptionLog(Code, pCode);
+
+          // [핵심] 동적 로그 생성 함수 호출 (하드코딩 X)
+          string materialLog = GenerateDynamicMaterialLog();
 
           Console.WriteLine($"[{Code}] ✅ 생산: {currentQty}/{targetQty} ({progress:F1}%) | {materialLog}");
         }
@@ -258,25 +252,83 @@ public class Machine
         }
       }
 
-      // 완료 보고 (실적 포함)
       Console.WriteLine($"[{Code}] 🏁 배치 최종 완료: {currentQty}EA (목표: {targetQty})");
       await ReportWorkOrderCompletionAsync(woNo, currentQty);
 
       _lastCompletedWoNo = woNo;
-
-      // 배치 완료 후 대기 상태 보고
       await ReportStatusAsync(stream, "WAIT", "BATCH_COMPLETED");
       Console.WriteLine($"[{Code}] 🔄 대기 모드 진입...");
       await Task.Delay(3000);
     }
   }
 
+  // [New] 백엔드 API에서 BOM 정보 가져오기
+  private async Task FetchBomAsync(string productCode)
+  {
+    try
+    {
+      var res = await _httpClient.GetAsync($"{BACKEND_URL}/api/bom/{productCode}");
+      if (res.IsSuccessStatusCode)
+      {
+        var json = await res.Content.ReadAsStringAsync();
+        // 백엔드 BomResponseDto 구조에 맞춰 역직렬화
+        _currentBomList = JsonConvert.DeserializeObject<List<BomDto>>(json);
+      }
+      else
+      {
+        _currentBomList = new List<BomDto>();
+      }
+    }
+    catch
+    {
+      _currentBomList = new List<BomDto>();
+    }
+  }
+
+  // [New] 동적 자재 소모 로그 생성 (내 공정에 맞는 자재만 필터링)
+  private string GenerateDynamicMaterialLog()
+  {
+    // 1. 내 설비 코드를 기반으로 '공정명' 매핑 (DB의 BOM.note 값과 일치해야 함)
+    string myProcessName = MapMachineCodeToProcessName(Code);
+
+    // 해당 공정이 아니거나 매핑되지 않으면 심플하게 리턴
+    if (string.IsNullOrEmpty(myProcessName)) return "공정 진행 중";
+
+    // 2. 받아온 BOM 리스트에서 내 공정 자재만 필터링
+    var myMaterials = _currentBomList
+                        .Where(b => b.Process == myProcessName)
+                        .ToList();
+
+    if (myMaterials.Count == 0) return "소모 자재 없음";
+
+    // 3. 로그 문자열 조립 (예: "소모: 납(6.00KG), 양극판(5.00EA)")
+    var sb = new StringBuilder("소모: ");
+    foreach (var mat in myMaterials)
+    {
+      // 소수점 2자리까지만 표시
+      sb.Append($"{mat.MaterialName}({mat.Qty:F2}{mat.Unit}), ");
+    }
+
+    return sb.ToString().TrimEnd(',', ' ');
+  }
+
+  // [New] 설비 코드 -> BOM 공정명 매핑
+  private string MapMachineCodeToProcessName(string machineCode)
+  {
+    switch (machineCode)
+    {
+      case "MAC-A-01": return "전극공정";
+      case "MAC-A-02": return "조립공정";
+      // 3번은 활성화공정인데 보통 자재 소모가 없음. 필요 시 추가
+      case "MAC-A-04": return "팩공정";
+      default: return "";
+    }
+  }
+
   // 상태 보고
   private async Task ReportStatusAsync(NetworkStream stream, string status, string reason)
   {
-    // 상태가 변할 때만 전송
     if (_currentStatus == status) return;
-
     _currentStatus = status;
 
     var packet = new
@@ -292,36 +344,7 @@ public class Machine
         timestamp = DateTime.Now.ToString("s")
       }
     };
-
     await SendJsonAsync(stream, packet);
-  }
-
-  // 제품별 자재 소모량 로그
-  private string GetMaterialConsumptionLog(string machineCode, string productCode)
-  {
-    if (machineCode == "MAC-A-03" || machineCode == "MAC-A-05") return "공정 진행 중";
-
-    string size = "S";
-    if (productCode.Contains("65AH")) size = "M";
-    if (productCode.Contains("90AH")) size = "L";
-
-    switch (machineCode)
-    {
-      case "MAC-A-01": // 전극
-        if (size == "S") return "소모: 납(6kg), 양극판(5ea), 음극판(5ea)";
-        if (size == "M") return "소모: 납(9kg), 양극판(6ea), 음극판(6ea)";
-        return "소모: 납(12kg), 양극판(8ea), 음극판(8ea)";
-
-      case "MAC-A-02": // 조립
-        if (size == "S") return "소모: 분리판(10ea), 전해액(2L), 케이스(1ea)";
-        if (size == "M") return "소모: 분리판(12ea), 전해액(3L), 케이스(1ea)";
-        return "소모: 분리판(16ea), 전해액(4L), 케이스(1ea)";
-
-      case "MAC-A-04": // 팩
-        return "소모: 라벨(1ea), 포장박스(1ea)";
-
-      default: return "";
-    }
   }
 
   private string GetRandomDefect(string machineCode)
@@ -336,23 +359,6 @@ public class Machine
       case "MAC-A-05": return r.Next(0, 2) == 0 ? "DIMENSION_ERROR" : "FOREIGN_MATERIAL";
       default: return "ETC";
     }
-  }
-
-  // DTO 클래스들
-  private class WorkOrderDto
-  {
-    public string WorkOrderNo { get; set; }
-    public int PlannedQty { get; set; }
-    public string ProductCode { get; set; }
-    public DateTime? DueDate { get; set; }
-  }
-
-  private class MachineMaterialDto
-  {
-    public long MaterialLotId { get; set; }
-    public string MaterialName { get; set; }
-    public string MaterialCode { get; set; }
-    public double RemainQty { get; set; }
   }
 
   private async Task<WorkOrderDto> FetchWorkOrderAsync()
@@ -404,5 +410,39 @@ public class Machine
     _temp = Math.Clamp(_temp + (rand.NextDouble() - 0.5) * 1.5, 23, 27);
     _humid = Math.Clamp(_humid + (rand.NextDouble() - 0.5) * 2.0, 40, 50);
     _volt = Math.Clamp(_volt + (rand.NextDouble() - 0.5) * 3.0, 217, 223);
+  }
+
+  // === DTO Classes ===
+
+  // [New] BOM 정보 수신용 DTO (백엔드 BomResponseDto와 매핑)
+  private class BomDto
+  {
+    [JsonProperty("materialName")]
+    public string MaterialName { get; set; }
+
+    [JsonProperty("qty")]
+    public double Qty { get; set; }
+
+    [JsonProperty("unit")]
+    public string Unit { get; set; }
+
+    [JsonProperty("process")]
+    public string Process { get; set; }
+  }
+
+  private class WorkOrderDto
+  {
+    public string WorkOrderNo { get; set; }
+    public int PlannedQty { get; set; }
+    public string ProductCode { get; set; }
+    public DateTime? DueDate { get; set; }
+  }
+
+  private class MachineMaterialDto
+  {
+    public long MaterialLotId { get; set; }
+    public string MaterialName { get; set; }
+    public string MaterialCode { get; set; }
+    public double RemainQty { get; set; }
   }
 }
